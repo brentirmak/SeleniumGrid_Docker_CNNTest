@@ -1,0 +1,114 @@
+import pytest
+import time
+import traceback
+from datetime import datetime
+import mysql.connector
+from selenium import webdriver
+
+GRID_URL = "http://192.168.150.1:4444"
+
+COMMON_ARGS = [
+    "--headless",
+    "--no-sandbox",
+    "--disable-dev-shm-usage",
+    "--disable-gpu",
+    "--window-size=1920,1080",
+    "--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+]
+
+
+def make_options(browser):
+    if browser == "chrome":
+        options = webdriver.ChromeOptions()
+    elif browser == "firefox":
+        options = webdriver.FirefoxOptions()
+    elif browser == "edge":
+        options = webdriver.EdgeOptions()
+    else:
+        raise ValueError(f"Unsupported browser: {browser}")
+
+    for arg in COMMON_ARGS:
+        options.add_argument(arg)
+
+    return options
+
+
+def log_test_result(result):
+    conn = mysql.connector.connect(
+        host="192.168.239.1",
+        user="selenium",
+        password="Selenium#123#",
+        database="selenium"
+    )
+
+    cursor = conn.cursor()
+
+    query = """
+        INSERT INTO seleniumgrid_test_results
+        (test_name, status, error_message, browser, node, start_time, end_time, duration_ms)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+    """
+
+    values = (
+        result["test_name"],
+        result["status"],
+        result["error_message"],
+        result["browser"],
+        result["node"],
+        result["start_time"],
+        result["end_time"],
+        result["duration_ms"]
+    )
+
+    cursor.execute(query, values)
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+
+@pytest.fixture(params=["chrome", "firefox", "edge"])
+def driver(request):
+    browser = request.param
+    options = make_options(browser)
+
+    d = webdriver.Remote(command_executor=GRID_URL, options=options)
+
+    # Attach metadata for logging
+    d.test_meta = {
+        "browser": browser,
+        "node": GRID_URL,
+        "start_time": datetime.now(),
+        "start_ts": time.time()
+    }
+
+    yield d
+    d.quit()
+
+
+@pytest.hookimpl(hookwrapper=True)
+def pytest_runtest_makereport(item, call):
+    outcome = yield
+    report = outcome.get_result()
+
+    if report.when != "call":
+        return
+
+    driver = item.funcargs.get("driver", None)
+    if not driver:
+        return
+
+    end_time = datetime.now()
+    duration_ms = int((time.time() - driver.test_meta["start_ts"]) * 1000)
+
+    result = {
+        "test_name": item.name,
+        "status": "PASS" if report.passed else "FAIL",
+        "error_message": None if report.passed else str(report.longrepr),
+        "browser": driver.test_meta["browser"],
+        "node": driver.test_meta["node"],
+        "start_time": driver.test_meta["start_time"],
+        "end_time": end_time,
+        "duration_ms": duration_ms
+    }
+
+    log_test_result(result)
