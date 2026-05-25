@@ -1,1 +1,6 @@
-This repo is for a Python Selenium script that uses SeleniumGrid to test a website against 3 different browsers
+<b>Background:</b> <br>
+1) Uses https://hub.docker.com/r/selenium/standalone-docker image (Selenium Grid Standalone with Dynamic capabilities) <br>
+2) Utilizes pytest to test http://www.cnn.com via 3 different browsers <br>
+3) Has logic to store individual test results into MySQL DB <br>
+4) PyCharm Dev Environment is on Ubuntu 26.04 - Jenkins(1) <br>
+5) Jenkins Instance is running on Ubuntu 26.04 - Jenkins(1) <br>
