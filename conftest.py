@@ -4,8 +4,20 @@ import traceback
 from datetime import datetime
 import mysql.connector
 from selenium import webdriver
+from dotenv import load_dotenv
+import os
 
-GRID_URL = "http://192.168.150.1:4444"
+
+# 1. Load the environment variables from the .env file
+load_dotenv()
+
+# 2. Retrieve the secrets using os.getenv()
+selenium_grid_url = os.getenv("SELENIUM_GRID_URL")
+mysql_url = os.getenv("MYSQL_URL")
+mysql_username = os.getenv("MYSQL_USERNAME")
+mysql_password = os.getenv("MYSQL_PASSWORD")
+
+GRID_URL = selenium_grid_url
 
 COMMON_ARGS = [
     "--headless",
@@ -15,7 +27,6 @@ COMMON_ARGS = [
     "--window-size=1920,1080",
     "--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
 ]
-
 
 def make_options(browser):
     if browser == "chrome":
@@ -35,9 +46,9 @@ def make_options(browser):
 
 def log_test_result(result):
     conn = mysql.connector.connect(
-        host="192.168.239.1",
-        user="selenium",
-        password="Selenium#123#",
+        host=mysql_url,
+        user=mysql_username,
+        password=mysql_password,
         database="selenium"
     )
 
