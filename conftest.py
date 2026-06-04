@@ -71,7 +71,7 @@ def log_test_result(result):
     cursor = conn.cursor()
 
     query = """
-        INSERT INTO seleniumgrid_test_results
+        INSERT INTO seleniumgrid_docker_cnn
         (run_id, worker_id, test_name, status, error_message, browser, node, start_time, end_time, duration_ms)
         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
     """
