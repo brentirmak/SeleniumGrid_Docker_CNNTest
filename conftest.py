@@ -6,6 +6,7 @@ import mysql.connector
 from selenium import webdriver
 from dotenv import load_dotenv
 import os
+import uuid
 
 
 # 1. Load the environment variables from the .env file
@@ -28,6 +29,22 @@ COMMON_ARGS = [
     "--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
 ]
 
+def pytest_configure(config):
+    # Only the master process creates the RunID
+    if not hasattr(config, "workerinput"):
+        config.run_id = str(uuid.uuid4())
+
+
+def pytest_configure_node(node):
+    # Send the RunID to each worker
+    node.workerinput["run_id"] = node.config.run_id
+
+
+def pytest_sessionstart(session):
+    # Workers receive the RunID here
+    if hasattr(session.config, "workerinput"):
+        session.config.run_id = session.config.workerinput["run_id"]
+
 def make_options(browser):
     if browser == "chrome":
         options = webdriver.ChromeOptions()
@@ -43,7 +60,6 @@ def make_options(browser):
 
     return options
 
-
 def log_test_result(result):
     conn = mysql.connector.connect(
         host=mysql_url,
@@ -56,11 +72,13 @@ def log_test_result(result):
 
     query = """
         INSERT INTO seleniumgrid_test_results
-        (test_name, status, error_message, browser, node, start_time, end_time, duration_ms)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+        (run_id, worker_id, test_name, status, error_message, browser, node, start_time, end_time, duration_ms)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
     """
 
     values = (
+        result["run_id"],
+        result["worker_id"],
         result["test_name"],
         result["status"],
         result["error_message"],
@@ -75,7 +93,6 @@ def log_test_result(result):
     conn.commit()
     cursor.close()
     conn.close()
-
 
 @pytest.fixture(params=["chrome", "firefox", "edge"])
 def driver(request):
@@ -110,8 +127,11 @@ def pytest_runtest_makereport(item, call):
 
     end_time = datetime.now()
     duration_ms = int((time.time() - driver.test_meta["start_ts"]) * 1000)
+    worker_id = getattr(item.config, "workerinput", {}).get("workerid", "master")
 
     result = {
+        "run_id": item.config.run_id,
+        "worker_id": worker_id,
         "test_name": item.name,
         "status": "PASS" if report.passed else "FAIL",
         "error_message": None if report.passed else str(report.longrepr),
