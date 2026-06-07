@@ -1,4 +1,4 @@
-<b>(6/4) Background:</b> <br>
+<b>(6/7) Background:</b> <br>
 1) Uses https://hub.docker.com/r/selenium/standalone-docker image (Selenium Grid Standalone with Dynamic capabilities) <br>
 2) Utilizes pytest to test http://www.cnn.com via 3 different browsers <br>
 3) Has logic to store individual test results into MySQL DB <br>
