@@ -9,7 +9,7 @@ class CNNHomePage:
         self.driver.get(self.URL)
 
     def open_http(self):
-        self.driver.get("http://www.cnn.com")
+        self.driver.get(self.URL)
 
     def title_contains_cnn(self):
         return "CNN" in self.driver.title
