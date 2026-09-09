@@ -29,16 +29,20 @@ COMMON_ARGS = [
     "--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
 ]
 
+def detect_run_type():
+    """Detects whether the test is running via Jenkins or Manually."""
+    if os.getenv("JENKINS_URL") or os.getenv("BUILD_NUMBER"):
+        return "jenkins"
+    return "manual"
+
 def pytest_configure(config):
     # Only the master process creates the RunID
     if not hasattr(config, "workerinput"):
         config.run_id = str(uuid.uuid4())
 
-
 def pytest_configure_node(node):
     # Send the RunID to each worker
     node.workerinput["run_id"] = node.config.run_id
-
 
 def pytest_sessionstart(session):
     # Workers receive the RunID here
@@ -72,8 +76,8 @@ def log_test_result(result):
 
     query = """
         INSERT INTO seleniumgrid_docker_cnn
-        (run_id, worker_id, test_name, status, error_message, browser, node, start_time, end_time, duration_ms)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        (run_id, worker_id, test_name, status, error_message, browser, node, start_time, end_time, duration_ms, run_type)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
     """
 
     values = (
@@ -86,7 +90,8 @@ def log_test_result(result):
         result["node"],
         result["start_time"],
         result["end_time"],
-        result["duration_ms"]
+        result["duration_ms"],
+        result["run_type"],
     )
 
     cursor.execute(query, values)
@@ -139,7 +144,8 @@ def pytest_runtest_makereport(item, call):
         "node": driver.test_meta["node"],
         "start_time": driver.test_meta["start_time"],
         "end_time": end_time,
-        "duration_ms": duration_ms
+        "duration_ms": duration_ms,
+        "run_type": detect_run_type(),  # Determines 'jenkins' or 'manual'
     }
 
     log_test_result(result)
