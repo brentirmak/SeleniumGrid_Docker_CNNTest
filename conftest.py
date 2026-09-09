@@ -76,14 +76,15 @@ def log_test_result(result):
 
     query = """
         INSERT INTO seleniumgrid_docker_cnn
-        (run_id, worker_id, test_name, status, error_message, browser, node, start_time, end_time, duration_ms, run_type)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        (run_id, worker_id, test_name, script_name, status, error_message, browser, node, start_time, end_time, duration_ms, run_type)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
     """
 
     values = (
         result["run_id"],
         result["worker_id"],
         result["test_name"],
+        result["script_name"],
         result["status"],
         result["error_message"],
         result["browser"],
@@ -133,11 +134,14 @@ def pytest_runtest_makereport(item, call):
     end_time = datetime.now()
     duration_ms = int((time.time() - driver.test_meta["start_ts"]) * 1000)
     worker_id = getattr(item.config, "workerinput", {}).get("workerid", "master")
+    # Extract the test file name (e.g., "test_login.py")
+    script_name = os.path.basename(str(item.fspath))
 
     result = {
         "run_id": item.config.run_id,
         "worker_id": worker_id,
         "test_name": item.name,
+        "script_name": script_name,
         "status": "PASS" if report.passed else "FAIL",
         "error_message": None if report.passed else str(report.longrepr),
         "browser": driver.test_meta["browser"],
